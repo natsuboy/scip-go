@@ -21,3 +21,5 @@ scratch/
 
 .opencode/
 .claude/
+
+.DS_Store
