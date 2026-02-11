@@ -2,7 +2,6 @@ package loader
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -195,7 +194,7 @@ func normalizePackage(opts *config.IndexOpts, pkg *packages.Package) *packages.P
 			log.Warn("Package has nil Module, using fallback",
 				"package", pkg.PkgPath,
 				"driver", os.Getenv("GOPACKAGESDRIVER"))
-			
+
 			pkg.Module = &packages.Module{
 				Path:    ".",
 				Version: ".",
@@ -219,7 +218,7 @@ func normalizePackage(opts *config.IndexOpts, pkg *packages.Package) *packages.P
 	// then update the module path appropriately
 	if strings.HasPrefix(pkg.Module.Path, ".") {
 		if pkg.Module.GoMod != "" {
-			contents, err := ioutil.ReadFile(pkg.Module.GoMod)
+			contents, err := os.ReadFile(pkg.Module.GoMod)
 
 			if err != nil {
 				handler.ErrOrPanic("Failed to read go mod file: %s", err)
