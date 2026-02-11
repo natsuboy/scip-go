@@ -43,7 +43,7 @@ var (
 	animation        bool
 	devMode          bool
 
-	// fUnNy cOmMaNd
+	// Command to execute (e.g., "index", "list-packages", "list-missing")
 	scipCommand string
 
 	// TODO: We should consider if we can avoid doing this in this iteration of scip-go
