@@ -100,7 +100,10 @@ func (p *Global) Add(pkgSymbols *Package) {
 }
 
 func (p *Global) SetPkgName(pkg *packages.Package, pkgDeclaration *ast.File) {
-	pkgNameObj := pkg.TypesInfo.ObjectOf(pkgDeclaration.Name)
+	// Note: We do NOT use ObjectOf(pkgDeclaration.Name) here because Go's type system
+	// treats package declarations as "uses" not "defs". ObjectOf returns nil for
+	// package identifiers, so GetSymbolKind would return UnspecifiedKind.
+	// Instead, we directly set Kind to Namespace for all package symbols.
 	p.m.Lock()
 	pkgName := &PackageName{
 		Symbol: &scip.SymbolInformation{
@@ -110,7 +113,7 @@ func (p *Global) SetPkgName(pkg *packages.Package, pkgDeclaration *ast.File) {
 			}),
 			Documentation: []string{},
 			Relationships: []*scip.Relationship{},
-			Kind:          symbols.GetSymbolKind(pkgNameObj),
+			Kind:          scip.SymbolInformation_Namespace,
 		},
 		Pos: pkgDeclaration.Name.NamePos,
 	}
