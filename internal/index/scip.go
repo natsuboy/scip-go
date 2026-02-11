@@ -207,7 +207,7 @@ func indexVisitPackages(
 				continue
 			}
 
-			pkgSymbol := globalSymbols.GetPkgNameSymbol(pkg).Symbol
+			pkgSymbolInfo := globalSymbols.GetPkgNameSymbol(pkg)
 			for _, f := range pkg.Syntax {
 				doc := pathToDocuments[pkg.Fset.File(f.Package).Name()]
 
@@ -216,13 +216,13 @@ func indexVisitPackages(
 
 					role := int32(scip.SymbolRole_ReadAccess)
 					if f == pkgDeclaration {
-						doc.SetNewSymbolForPos(pkgSymbol, pkgDeclaration, f.Name, f.Name.NamePos)
+						doc.SetPackageSymbol(f.Name.NamePos, pkgSymbolInfo, pkgDeclaration)
 						role = int32(scip.SymbolRole_Definition)
 					}
 
 					doc.PackageOccurrence = &scip.Occurrence{
 						Range:       symbols.RangeFromName(position, f.Name.Name, false),
-						Symbol:      pkgSymbol,
+						Symbol:      pkgSymbolInfo.Symbol,
 						SymbolRoles: role,
 					}
 				}
