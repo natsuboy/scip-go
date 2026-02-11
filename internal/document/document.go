@@ -13,6 +13,7 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/sourcegraph/scip-go/internal/lookup"
+	"github.com/sourcegraph/scip-go/internal/output"
 	"github.com/sourcegraph/scip-go/internal/symbols"
 	"github.com/sourcegraph/scip/bindings/go/scip"
 	"golang.org/x/tools/go/packages"
@@ -61,6 +62,26 @@ func (d *Document) GetSymbol(pos token.Pos) (string, bool) {
 	return d.pkgSymbols.GetSymbol(pos)
 }
 
+// SetPackageSymbol stores a pre-created package symbol and enriches it with documentation.
+// This avoids recreating SymbolInformation for package symbols that are
+// already created in lookup.Global.SetPkgName with the correct Kind=Namespace.
+func (d *Document) SetPackageSymbol(pos token.Pos, symInfo *scip.SymbolInformation, pkgDecl *ast.File) {
+	documentation := []string{}
+	if pkgDecl != nil {
+		hover := d.extractHoverText(nil, pkgDecl)
+		if hover != "" {
+			documentation = append(documentation, hover)
+		}
+	}
+
+	d.pkgSymbols.Set(pos, &scip.SymbolInformation{
+		Symbol:        symInfo.Symbol,
+		Documentation: documentation,
+		Relationships: symInfo.Relationships,
+		Kind:          symInfo.Kind,
+	})
+}
+
 // SetNewSymbol declares a new symbol and tracks it within a Document.
 //
 // NOTE: Does NOT emit a new occurrence
@@ -88,7 +109,17 @@ func (d *Document) SetNewSymbolForPos(
 	if ident != nil {
 		hover := d.extractHoverText(parent, ident)
 		var signature, extra string
-		def = d.pkg.TypesInfo.Defs[ident]
+		// Use ObjectOf instead of Defs to handle edge cases where Defs[ident] is nil
+		// (e.g., ill-typed code, duplicate declarations). ObjectOf checks both Defs and Uses.
+		def = d.pkg.TypesInfo.ObjectOf(ident)
+
+		// Diagnostic: warn if ObjectOf found the object via Uses instead of Defs
+		// This indicates the identifier is not recognized as a definition by the type checker
+		if def != nil && d.pkg.TypesInfo.Defs[ident] == nil {
+			output.Logf("Symbol resolved via Uses instead of Defs (potential type error): %s at %s",
+				ident.Name, d.pkg.Fset.Position(ident.Pos()))
+		}
+
 		if def != nil {
 			signature, extra = typeStringForObject(def)
 		}
@@ -104,11 +135,13 @@ func (d *Document) SetNewSymbolForPos(
 		}
 	}
 
+	kind := symbols.GetSymbolKind(def)
+
 	d.pkgSymbols.Set(pos, &scip.SymbolInformation{
 		Symbol:        symbol,
 		Documentation: documentation,
 		Relationships: []*scip.Relationship{},
-		Kind:          symbols.GetSymbolKind(def),
+		Kind:          kind,
 	})
 }
 
